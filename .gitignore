@@ -1,0 +1,15 @@
+# ===== SQLite 数据库文件（用 backend/database.sql 可随时重新生成，不纳入版本管理）=====
+campus.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# ===== Python 缓存（后续写后端时会产生）=====
+__pycache__/
+*.pyc
+
+# ===== 系统/编辑器临时文件 =====
+Thumbs.db
+.DS_Store
+.vscode/
+.idea/
