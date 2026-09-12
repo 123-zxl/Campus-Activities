@@ -23,7 +23,7 @@ DROP TABLE IF EXISTS users;
 CREATE TABLE users (
     id          TEXT PRIMARY KEY,                                   -- 登录账号：学生填学号，教师填工号
     role        TEXT NOT NULL CHECK (role IN ('student','teacher')), -- 身份：student=学生，teacher=教师
-    password    TEXT NOT NULL,                                      -- 登录密码（V1.0 学习版先明文存放，正式项目应加密）
+    password    TEXT NOT NULL,                                      -- 登录密码（后端用哈希加密后存入，看不到明文）
     name        TEXT NOT NULL,                                      -- 姓名
     gender      TEXT CHECK (gender IN ('男','女')),                 -- 性别：学生填写，教师可以留空(NULL)
     major_class TEXT,                                               -- 专业班级：学生填写，教师留空(NULL)
@@ -35,14 +35,19 @@ CREATE TABLE users (
 -- 2. activities 活动表
 -- ============================================================
 CREATE TABLE activities (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,                -- 活动编号：数据库自动生成 1、2、3……
-    name          TEXT NOT NULL,                                    -- 活动名称
-    activity_time TEXT NOT NULL,                                    -- 活动时间，例如 '2026-09-20 14:00'
-    location      TEXT NOT NULL,                                    -- 活动地点
-    total_count   INTEGER NOT NULL CHECK (total_count > 0),         -- 总人数（报名名额上限，必须大于 0）
-    description   TEXT,                                             -- 活动介绍，可以留空
-    publisher_id  TEXT NOT NULL,                                    -- 发布教师的工号（对应 users.id）
-    created_at    TEXT NOT NULL DEFAULT (datetime('now','localtime')),    -- 发布时间：自动生成
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,            -- 活动编号：数据库自动生成 1、2、3……
+    name              TEXT NOT NULL,                                -- 活动名称
+    start_time        TEXT NOT NULL,                                -- 开始时间，例如 '2026-09-20 14:00'
+    end_time          TEXT NOT NULL,                                -- 结束时间，例如 '2026-09-20 16:00'
+    register_deadline TEXT NOT NULL,                                -- 报名截止时间，过了这个时间不能再报名
+    location          TEXT NOT NULL,                                -- 活动地点
+    total_count       INTEGER NOT NULL CHECK (total_count > 0),     -- 总人数（报名名额上限，必须大于 0）
+    description       TEXT,                                         -- 活动介绍，可以留空
+    cancelled         INTEGER NOT NULL DEFAULT 0 CHECK (cancelled IN (0,1)), -- 是否被教师取消：0=正常，1=已取消
+    publisher_id      TEXT NOT NULL,                                -- 发布教师的工号（对应 users.id）
+    created_at        TEXT NOT NULL DEFAULT (datetime('now','localtime')),  -- 发布时间：自动生成
+    -- 时间必须合理：结束晚于开始，报名截止不晚于开始
+    CHECK (end_time > start_time AND register_deadline <= start_time),
     -- 外键：发布教师必须是 users 表中真实存在的用户
     FOREIGN KEY (publisher_id) REFERENCES users(id)
 );
