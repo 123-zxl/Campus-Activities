@@ -17,12 +17,14 @@ from datetime import datetime
 from functools import wraps
 
 from flask import Flask, g, jsonify, request
+from flask_cors import CORS
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from db import get_db
 
 app = Flask(__name__)
 app.json.ensure_ascii = False  # 让中文直接显示，不转成 \uXXXX
+CORS(app)  # 允许前端页面跨域访问：前端网页和后端端口不同，浏览器默认会拦截，不加这个前端联调必报错
 
 # ------------------------------------------------------------------
 # 登录令牌（Token）存储
@@ -400,6 +402,10 @@ def update_activity(activity_id):
     err = validate_times(start_time, end_time, deadline)
     if err:
         return fail(err)
+
+    # 新名额不能小于当前已报名人数，否则已报名的学生就"装不下"了
+    if "total_count" in fields and fields["total_count"] < row["registered_count"]:
+        return fail("总人数不能小于已报名人数（当前已报名 %d 人）" % row["registered_count"])
 
     if not fields:
         return fail("没有需要更新的字段")

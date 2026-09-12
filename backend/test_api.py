@@ -179,6 +179,11 @@ r = client.get("/api/activities/1/registrations", headers=H(teacher1))
 j = r.get_json()
 check("王老师看到自己活动的2人名单", r.status_code == 200 and j["registered_count"] == 2)
 
+r = client.put("/api/activities/1", json={"total_count": 1}, headers=H(teacher1))
+check("名额改到小于已报名人数(2)被拒绝", r.status_code == 400 and "已报名" in r.get_json()["error"])
+r = client.put("/api/activities/1", json={"total_count": 3}, headers=H(teacher1))
+check("名额改大到3成功", r.status_code == 200 and r.get_json()["total_count"] == 3)
+
 # ==================================================================
 print("=" * 60); print("六、报名/重复/满员/退选释放名额"); print("=" * 60)
 r = client.post("/api/activities/3/register", headers=H(student1))
