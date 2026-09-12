@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>校园活动管理系统 · 前端示例页</title>
+  <!--
+    ============================================================
+    这个文件是给前端队友的"抄作业模板"：
+    它演示了和后端打交道必须会的三件事——
+      1. 登录拿 token（POST /api/login）
+      2. 带着token请求数据（请求头 Authorization: Bearer xxx）
+      3. 把后端返回的 JSON 渲染成页面表格
+    用法：
+      第一步：先启动后端（backend 目录里运行 python app.py）
+      第二步：直接双击本文件用浏览器打开即可
+      演示账号：学生 2026001 / 123456   教师 T001 / 123456
+    ============================================================
+  -->
+  <style>
+    /* 最简单的样式：够看就行，以后由负责前端的队友重新设计 */
+    body { font-family: "Microsoft YaHei", sans-serif; max-width: 900px; margin: 30px auto; padding: 0 16px; color: #333; }
+    h1 { font-size: 22px; }
+    h2 { font-size: 16px; margin-top: 24px; }
+    input, button { padding: 8px 10px; font-size: 14px; margin-right: 8px; }
+    button { cursor: pointer; background: #2563eb; color: #fff; border: none; border-radius: 4px; }
+    button.gray { background: #9ca3af; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px; font-size: 13px; text-align: left; }
+    th { background: #f3f4f6; }
+    #message { margin: 12px 0; padding: 10px; border-radius: 4px; display: none; }
+    .ok  { background: #dcfce7; color: #166534; }
+    .err { background: #fee2e2; color: #991b1b; }
+    .tip { color: #888; font-size: 12px; }
+  </style>
+</head>
+<body>
+
+  <h1>校园活动管理系统 · 前端示例页</h1>
+  <p class="tip">这个页面展示了"网页如何调用后端接口"。读懂它，其它页面照葫芦画瓢即可。</p>
+
+  <!-- 提示信息区：成功（绿色）/ 失败（红色）都显示在这里 -->
+  <div id="message"></div>
+
+  <!-- ============ 登录区（登录成功后隐藏） ============ -->
+  <div id="login-box">
+    <h2>登录</h2>
+    <input id="uid" placeholder="账号，如 2026001">
+    <input id="pwd" type="password" placeholder="密码，如 123456">
+    <button onclick="doLogin()">登录</button>
+    <p class="tip">演示账号：学生 2026001，教师 T001，密码都是 123456</p>
+  </div>
+
+  <!-- ============ 登录成功后显示的内容区 ============ -->
+  <div id="main-box" style="display:none">
+    <h2>
+      欢迎，<span id="whoami"></span>（<span id="myrole"></span>）
+      <button class="gray" onclick="doLogout()">退出登录</button>
+    </h2>
+  </div>
+
+  <!-- ============ 活动列表（不需要登录也能看） ============ -->
+  <h2>活动列表 <button onclick="loadActivities()">刷新</button></h2>
+  <table>
+    <thead>
+      <tr>
+        <th>名称</th><th>时间</th><th>地点</th><th>名额</th><th>状态</th><th>操作</th>
+      </tr>
+    </thead>
+    <tbody id="activity-list">
+      <!-- JS 会把后端返回的活动数据填到这里 -->
+    </tbody>
+  </table>
+
+  <script>
+    // ==================================================================
+    // 第 0 步：后端地址。以后部署到服务器时只需要改这一行
+    // ==================================================================
+    const API = "http://127.0.0.1:5000";
+
+    // token 存在浏览器自带的 localStorage 里，刷新页面不会丢
+    let token = localStorage.getItem("token") || "";
+    let me = null; // 当前登录的用户信息
+
+    // ==================================================================
+    // 第 1 步：写一个"通用请求函数"，所有接口都走它
+    // 好处：token、错误提示只写一次，别处直接调用
+    // ==================================================================
+    async function api(path, method = "GET", body = null, needAuth = false) {
+      const headers = {};
+      if (body) headers["Content-Type"] = "application/json";   // 告诉后端发的是JSON
+      if (needAuth) headers["Authorization"] = "Bearer " + token; // 登录凭证放请求头里
+      const res = await fetch(API + path, {
+        method: method,
+        headers: headers,
+        body: body ? JSON.stringify(body) : null
+      });
+      const data = await res.json();  // 后端返回的都是JSON
+      if (!res.ok) throw new Error(data.error || ("请求失败：" + res.status));
+      return data;
+    }
+
+    // 在页面上显示一条提示（绿色成功 / 红色失败）
+    function showMessage(text, isError = false) {
+      const box = document.getElementById("message");
+      box.textContent = text;
+      box.className = isError ? "err" : "ok";
+      box.style.display = "block";
+      setTimeout(() => { box.style.display = "none"; }, 4000); // 4秒后自动消失
+    }
+
+    // ==================================================================
+    // 第 2 步：登录。调用 POST /api/login，把后端发的 token 存起来
+    // ==================================================================
+    async function doLogin() {
+      const uid = document.getElementById("uid").value.trim();
+      const pwd = document.getElementById("pwd").value;
+      try {
+        const data = await api("/api/login", "POST", { id: uid, password: pwd });
+        token = data.token;                          // 记住token
+        localStorage.setItem("token", token);        // 存进浏览器，刷新不丢
+        me = data.user;
+        renderLoginState();
+        loadActivities();
+        showMessage("登录成功，欢迎 " + me.name);
+      } catch (e) {
+        showMessage(e.message, true);                // 后端会返回"账号或密码不正确"等中文提示
+      }
+    }
+
+    // 退出登录：把本地token清掉即可
+    function doLogout() {
+      token = "";
+      localStorage.removeItem("token");
+      me = null;
+      renderLoginState();
+      loadActivities();
+    }
+
+    // 根据登录与否，切换"登录框"和"欢迎区"的显示
+    function renderLoginState() {
+      document.getElementById("login-box").style.display = token ? "none" : "block";
+      document.getElementById("main-box").style.display = token ? "block" : "none";
+      if (me) {
+        document.getElementById("whoami").textContent = me.name + "（" + me.id + "）";
+        document.getElementById("myrole").textContent = me.role === "teacher" ? "教师" : "学生";
+      }
+    }
+
+    // ==================================================================
+    // 第 3 步：拉取活动列表并渲染成表格。GET /api/activities 无需登录
+    // ==================================================================
+    async function loadActivities() {
+      try {
+        const data = await api("/api/activities?page_size=50");
+        const tbody = document.getElementById("activity-list");
+        tbody.innerHTML = "";                        // 先清空再填，防止重复
+        for (const a of data.items) {
+          const tr = document.createElement("tr");
+          // 教师身份不显示报名按钮（后端也会拒绝教师报名，前端只是提前隐藏）
+          let action = "-";
+          if (me && me.role === "student") {
+            const mine = await isRegistered(a.id);   // 查我是否已报过名
+            action = mine
+              ? '<button class="gray" onclick="cancelRegistration(' + a.id + ')">退选</button>'
+              : (a.status === "报名中" && a.remaining_count > 0
+                  ? '<button onclick="registerActivity(' + a.id + ')">报名</button>'
+                  : '<span class="tip">不可报</span>');
+          }
+          tr.innerHTML =
+            "<td>" + a.name + "</td>" +
+            "<td>" + a.start_time + " ~ " + a.end_time + "</td>" +
+            "<td>" + a.location + "</td>" +
+            "<td>" + a.registered_count + "/" + a.total_count + "</td>" +
+            "<td>" + a.status + "</td>" +
+            "<td>" + action + "</td>";
+          tbody.appendChild(tr);
+        }
+      } catch (e) {
+        showMessage("加载活动失败：" + e.message + "（后端没启动？请先在 backend 目录运行 python app.py）", true);
+      }
+    }
+
+    // 查询"我"是否报过某个活动：GET /api/my/registrations（需要token）
+    async function isRegistered(activityId) {
+      try {
+        const data = await api("/api/my/registrations", "GET", null, true);
+        return data.items.some(it => it.id === activityId);
+      } catch (e) { return false; }
+    }
+
+    // ==================================================================
+    // 第 4 步：报名 / 退选。这两个接口都必须带 token
+    // ==================================================================
+    async function registerActivity(id) {
+      try {
+        await api("/api/activities/" + id + "/register", "POST", null, true);
+        showMessage("报名成功！");
+        loadActivities();                            // 重新拉列表，名额立刻刷新
+      } catch (e) { showMessage(e.message, true); }  // 例如"报名人数已满"
+    }
+
+    async function cancelRegistration(id) {
+      try {
+        await api("/api/activities/" + id + "/register", "DELETE", null, true);
+        showMessage("已退选");
+        loadActivities();
+      } catch (e) { showMessage(e.message, true); }
+    }
+
+    // ==================================================================
+    // 页面打开时自动执行：
+    // 1) 如果浏览器里存着 token，先调 GET /api/me 验证是否还有效
+    // 2) 无论如何都把活动列表加载出来
+    // ==================================================================
+    (async function init() {
+      if (token) {
+        try {
+          me = await api("/api/me", "GET", null, true); // token有效，恢复登录状态
+        } catch (e) {
+          token = "";                                   // token过期（后端重启过），重新登录
+          localStorage.removeItem("token");
+        }
+      }
+      renderLoginState();
+      loadActivities();
+    })();
+  </script>
+</body>
+</html>
