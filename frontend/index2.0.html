@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校园活动管理系统 V2.0</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Microsoft Yahei", sans-serif; }
+        body { background-color: #f5f7fa; padding:24px; }
+        .wrap{ max-width:1400px; margin:0 auto; }
+        .block{ background:#fff; padding:20px; margin-bottom:30px; border-radius:8px; box-shadow:0 1px 4px #ccc; }
+        .login-block{ max-width:600px; margin:80px auto 0; }
+        .top-bar{ margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; }
+        h3{ margin-bottom:14px; color:#2c3e50; }
+        table{ width:100%; border-collapse: collapse; margin-bottom:16px; }
+        table th,table td{ border:1px solid #999; padding:10px; text-align:center; }
+        th{ background:#f0f2f5; }
+        button{ padding:8px 14px; border:none; border-radius:4px; cursor:pointer; margin:0 3px; font-size:14px; }
+        .btn-detail{ background:#95a5a6; color:white; }
+        .btn-sign{ background:#3498db; color:white; }
+        .btn-cancel{ background:#e74c3c; color:white; }
+        .btn-edit{ background:#f39c12; color:white; }
+        .btn-stuList{ background:#27ae60; color:white; }
+        .btn-export{ background:#16a085; color:white; }
+        .btn-del{ background:#c0392b; color:white; }
+        .btn-publish{ background:#2980b9; color:white; }
+        .btn-refresh{ background:#888; color:#fff; }
+        .btn-stop{ background:#c82423; color:#fff; }
+        .btn-unfreeze{ background:#27ae60; color:#fff; }
+        .btn-save{ background:#2980b9; color:white; }
+        .btn-cancel-form{ background:#888; color:#fff; }
+        .btn-approve{ background:#27ae60; color:white; }
+        .btn-reject{ background:#c0392b; color:white; }
+        .tip-text{ margin-top:10px; color:#555; font-size:14px; }
+        .hidden{ display:none !important; }
+        .form-item{ margin-bottom:16px; }
+        label{ display:block; margin-bottom:6px; }
+        input,select,textarea{ width:100%; padding:9px; border:1px solid #bbb; border-radius:4px; font-size:15px; }
+        .tag-normal{ background:#d5f5e3; color:#1e8449; padding:3px 8px; border-radius:10px; font-size:13px; }
+        .tag-freeze{ background:#fadbd8; color:#922b21; padding:3px 8px; border-radius:10px; font-size:13px; }
+        .tag-needaudit{ background:#ffeaa7; color:#d35400; padding:2px 6px; border-radius:6px; font-size:12px; margin-left:6px; }
+        .sub-block{ background:#f8f9f9; border:1px solid #ddd; border-radius:6px; padding:16px; margin-top:16px; }
+        .sub-block h4{ margin-bottom:10px; color:#2c3e50; }
+        .detail-modal{ position: fixed; top: 0; left: 0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index: 1000; display:flex; align-items:center; justify-content:center; }
+        .detail-modal.hidden{ display:none !important; }
+        .detail-modal-content{ background:#fff; padding:24px 28px; border-radius:8px; min-width:420px; }
+        .detail-modal-content h4{ margin-bottom:12px; text-align:center; }
+        .detail-modal-content p{ margin:6px 0; line-height:1.6; }
+        .detail-modal-content .btn-wrap{ margin-top:16px; text-align:right; }
+        .publish-form-area{ margin-top:20px; border:1px solid #ccc; padding:18px; border-radius:6px; }
+        .publish-form-area h4{ margin-bottom:12px; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <!-- 登录页 -->
+    <div id="loginPage" class="block login-block">
+        <h3>系统登录</h3>
+        <div class="form-item">
+            <label>账号</label>
+            <input type="text" id="username" placeholder="请输入账号">
+        </div>
+        <div class="form-item">
+            <label>密码</label>
+            <input type="password" id="pwd" placeholder="请输入密码">
+        </div>
+        <button onclick="doLogin()">登录</button>
+        <div class="tip-text" id="loginTip">
+            演示账号（密码均为 123456）：<br>
+            学生：2026001 / 2026002 / 2026003<br>
+            教师：T001 / T002<br>
+            管理员：admin
+        </div>
+    </div>
+
+    <!-- 学生页面 -->
+    <div id="studentPage" class="block hidden">
+        <div class="top-bar">
+            <h3>界面2.1：学生报名活动列表</h3>
+            <div>
+                <button onclick="toggleMyReg()">我的报名</button>
+                <button onclick="renderStudentTable()">刷新</button>
+                <button onclick="logout()">退出登录</button>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>名称</th><th>时间</th><th>地点</th><th>人数</th>
+                    <th>状态</th><th>组织教师</th><th>活动介绍</th><th>报名</th><th>退选</th>
+                </tr>
+            </thead>
+            <tbody id="stuTableBody"></tbody>
+        </table>
+        <div style="margin:8px 0;">共 <span id="actTotal">0</span> 个活动</div>
+        <div id="myRegBlock" class="sub-block hidden">
+            <h4>我的报名记录</h4>
+            <table>
+                <thead><tr><th>活动名称</th><th>时间</th><th>地点</th><th>我的状态</th></tr></thead>
+                <tbody id="myRegBody"></tbody>
+            </table>
+            <div style="margin-top:10px;"><button onclick="toggleMyReg()">关闭</button></div>
+        </div>
+    </div>
+
+    <!-- 教师页面 -->
+    <div id="teacherPage" class="block hidden">
+        <div class="top-bar">
+            <h3>界面2.2：老师活动管理界面</h3>
+            <button onclick="logout()">退出登录</button>
+        </div>
+        <div style="margin-bottom:12px;">
+            <button class="btn-publish" onclick="showPublishForm()">发布活动</button>
+            <button class="btn-refresh" onclick="renderTeacherTable()">刷新</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>名称</th><th>时间</th><th>地点</th><th>人数</th>
+                    <th>需审核</th><th>编辑活动介绍</th><th>管理学生</th><th>导出报名清单</th><th>删除活动</th>
+                </tr>
+            </thead>
+            <tbody id="teaTableBody"></tbody>
+        </table>
+        <div style="margin-bottom:8px;">共 <span id="myActCount">0</span> 个由你发布的活动</div>
+
+        <div id="publishForm" class="publish-form-area hidden">
+            <h4>发布活动</h4>
+            <div class="form-item"><label>活动名称</label><input type="text" id="actName"></div>
+            <div class="form-item"><label>活动时间</label><input type="datetime-local" id="actTime"></div>
+            <div class="form-item"><label>活动地点</label><input type="text" id="actLoc"></div>
+            <div class="form-item"><label>名额上限</label><input type="number" id="actMax"></div>
+            <div class="form-item"><label>活动介绍</label><textarea id="actDesc" rows="4"></textarea></div>
+            <div class="form-item">
+                <input type="checkbox" id="needAudit" style="width:auto;">
+                <label for="needAudit" style="display:inline;">报名需要我逐个审核（有明确参加条件的活动勾选）</label>
+            </div>
+            <div>
+                <button class="btn-save" onclick="saveNewActivity()">保存</button>
+                <button class="btn-cancel-form" onclick="hidePublishForm()">取消</button>
+            </div>
+        </div>
+
+        <div id="rosterBlock" class="sub-block hidden">
+            <h4>活动报名学生名单</h4>
+            <table>
+                <thead>
+                    <tr><th>学生姓名</th><th>学号</th><th>报名状态</th><th>审核操作</th></tr>
+                </thead>
+                <tbody id="rosterBody"></tbody>
+            </table>
+            <div style="margin-top:10px;"><button onclick="closeRoster()">关闭名单</button></div>
+        </div>
+    </div>
+
+    <!-- 管理员页面 -->
+    <div id="adminPage" class="block hidden">
+        <div class="top-bar">
+            <h3>界面2.3：系统管理员管理界面</h3>
+            <button onclick="logout()">退出登录</button>
+        </div>
+        <h4>用户账号管理</h4>
+        <table>
+            <thead><tr><th>姓名</th><th>账号</th><th>角色</th><th>账号状态</th><th>操作</th></tr></thead>
+            <tbody id="adminTableBody"></tbody>
+        </table>
+        <h4 style="margin-top:24px;">平台全部活动（监督查看）</h4>
+        <table>
+            <thead><tr><th>名称</th><th>时间</th><th>地点</th><th>人数</th><th>组织教师</th><th>状态</th></tr></thead>
+            <tbody id="adminActBody"></tbody>
+        </table>
+    </div>
+
+    <!-- 学生查看详情弹窗 -->
+    <div id="detailModal" class="detail-modal hidden">
+        <div class="detail-modal-content">
+            <h4 id="detailTitle"></h4>
+            <p>时间：<span id="detailTime"></span></p >
+            <p>地点：<span id="detailLoc"></span></p >
+            <p>名额：<span id="detailNum"></span></p >
+            <p>组织教师：<span id="detailTeacher"></span></p >
+            <p>简介：<span id="detailDesc"></span></p >
+            <div class="btn-wrap"><button onclick="closeDetailModal()">关闭</button></div>
+        </div>
+    </div>
+
+    <!-- 教师编辑活动弹窗 -->
+    <div id="editModal" class="detail-modal hidden">
+        <div class="detail-modal-content">
+            <h4>编辑活动介绍</h4>
+            <textarea id="editTextarea" rows="6" style="width:100%;"></textarea>
+            <div class="btn-wrap">
+                <button onclick="saveEdit()">确定</button>
+                <button onclick="closeEditModal()">取消</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:5001';
+
+let currentUser = null;
+let activityList = [];
+let userList = [];
+let currentEditIndex = null;
+let currentRosterActId = null;
+
+const loginPage = document.getElementById("loginPage");
+const studentPage = document.getElementById("studentPage");
+const teacherPage = document.getElementById("teacherPage");
+const adminPage = document.getElementById("adminPage");
+const stuTableBody = document.getElementById("stuTableBody");
+const myRegBlock = document.getElementById("myRegBlock");
+const myRegBody = document.getElementById("myRegBody");
+const teaTableBody = document.getElementById("teaTableBody");
+const rosterBlock = document.getElementById("rosterBlock");
+const rosterBody = document.getElementById("rosterBody");
+const detailModal = document.getElementById("detailModal");
+const editModal = document.getElementById("editModal");
+const editTextarea = document.getElementById("editTextarea");
+const adminTableBody = document.getElementById("adminTableBody");
+const adminActBody = document.getElementById("adminActBody");
+const publishForm = document.getElementById("publishForm");
+const detailTitle = document.getElementById("detailTitle");
+const detailTime = document.getElementById("detailTime");
+const detailLoc = document.getElementById("detailLoc");
+const detailNum = document.getElementById("detailNum");
+const detailTeacher = document.getElementById("detailTeacher");
+const detailDesc = document.getElementById("detailDesc");
+
+// ============ 登录 ============
+function doLogin(){
+    const username = document.getElementById("username").value.trim();
+    const pwd = document.getElementById("pwd").value;
+    if(!username || !pwd){ alert("账号密码不能为空"); return; }
+
+    fetch(API + '/login', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({username: username, password: pwd})
+    })
+    .then(res => res.json().then(data => ({ok:res.ok, data})))
+    .then(({ok, data}) => {
+        if(!ok){ alert(data.message || "登录失败"); return; }
+        currentUser = data.user;
+        loginPage.classList.add("hidden");
+        if(currentUser.role === 'student'){
+            studentPage.classList.remove("hidden");
+            renderStudentTable();
+        }else if(currentUser.role === 'teacher'){
+            teacherPage.classList.remove("hidden");
+            renderTeacherTable();
+        }else if(currentUser.role === 'admin'){
+            adminPage.classList.remove("hidden");
+            renderAdminTable();
+        }
+    })
+    .catch(err => alert("登录失败：" + err));
+}
+
+function logout(){
+    currentUser = null;
+    loginPage.classList.remove("hidden");
+    studentPage.classList.add("hidden");
+    teacherPage.classList.add("hidden");
+    adminPage.classList.add("hidden");
+    myRegBlock.classList.add("hidden");
+    rosterBlock.classList.add("hidden");
+    detailModal.classList.add("hidden");
+    editModal.classList.add("hidden");
+    publishForm.classList.add("hidden");
+}
+
+// ============ 学生 ============
+function renderStudentTable(){
+    fetch(API + '/activities')
+    .then(res => res.json())
+    .then(data => {
+        activityList = data.activities || [];
+        stuTableBody.innerHTML = "";
+        activityList.forEach((act, idx) => {
+            const tr = document.createElement("tr");
+            const auditTag = act.need_review ? `<span class="tag-needaudit">需审核</span>` : "";
+            tr.innerHTML = `
+                <td>${act.title}${auditTag}</td>
+                <td>${act.time}</td>
+                <td>${act.location}</td>
+                <td>${act.current_people}/${act.max_people}</td>
+                <td>${act.status}</td>
+                <td>${act.publisher_name || ""}</td>
+                <td><button class="btn-detail" onclick="openDetail(${idx})">查看详情</button></td>
+                <td><button class="btn-sign" onclick="doSign(${idx})">报名</button></td>
+                <td><button class="btn-cancel" onclick="doCancel(${idx})">退选</button></td>
+            `;
+            stuTableBody.appendChild(tr);
+        });
+        document.getElementById("actTotal").innerText = activityList.length;
+        renderMyRegister();
+    });
+}
+
+function doSign(index){
+    const act = activityList[index];
+    fetch(API + '/activity/' + act.id + '/register', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({user_id: currentUser.id})
+    })
+    .then(res => res.json())
+    .then(data => { alert(data.message); renderStudentTable(); });
+}
+function doCancel(index){
+    const act = activityList[index];
+    fetch(API + '/activity/' + act.id + '/cancel', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({user_id: currentUser.id})
+    })
+    .then(res => res.json())
+    .then(data => { alert(data.message); renderStudentTable(); });
+}
+
+function renderMyRegister(){
+    if(!currentUser) return;
+    fetch(API + '/my/registrations?user_id=' + currentUser.id)
+    .then(res => res.json())
+    .then(data => {
+        const list = data.registrations || [];
+        myRegBody.innerHTML = "";
+        list.forEach(r => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `<td>${r.activity_title}</td><td>${r.activity_time}</td><td>${r.activity_location}</td><td>${r.status_text}</td>`;
+            myRegBody.appendChild(tr);
+        });
+    })
+    .catch(err => {
+        myRegBody.innerHTML = `<tr><td colspan="4">加载失败：${err}</td></tr>`;
+    });
+}
+function toggleMyReg(){
+    myRegBlock.classList.toggle("hidden");
+    renderMyRegister();
+}
+
+function openDetail(idx){
+    const act = activityList[idx];
+    detailTitle.innerText = act.title;
+    detailTime.innerText = act.time;
+    detailLoc.innerText = act.location;
+    detailNum.innerText = act.current_people + "/" + act.max_people;
+    detailTeacher.innerText = act.publisher_name || "";
+    detailDesc.innerText = act.description || "暂无简介";
+    detailModal.classList.remove("hidden");
+}
+function closeDetailModal(){ detailModal.classList.add("hidden"); }
+
+// ============ 教师 ============
+function renderTeacherTable(){
+    fetch(API + '/my_activities?user_id=' + currentUser.id)
+    .then(res => res.json())
+    .then(data => {
+        const list = data.activities || [];
+        teaTableBody.innerHTML = "";
+        list.forEach(act => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${act.title}</td>
+                <td>${act.time}</td>
+                <td>${act.location}</td>
+                <td>${act.current_people}/${act.max_people}</td>
+                <td>${act.need_review ? "是" : "否"}</td>
+                <td><button class="btn-edit" onclick="openEditModal(${act.id}, \`${(act.description||'').replace(/`/g,'')}\`)">编辑</button></td>
+                <td><button class="btn-stuList" onclick="openRosterById(${act.id})">查看报名列表</button></td>
+                <td><button class="btn-export" onclick="exportExcel()">导出报名清单</button></td>
+                <td><button class="btn-del" onclick="deleteActivityById(${act.id})">删除活动</button></td>
+            `;
+            teaTableBody.appendChild(tr);
+        });
+        document.getElementById("myActCount").innerText = list.length;
+    });
+}
+
+function openEditModal(actId, desc){
+    currentEditIndex = actId;
+    editTextarea.value = desc;
+    editModal.classList.remove("hidden");
+}
+function closeEditModal(){ editModal.classList.add("hidden"); }
+function saveEdit(){
+    fetch(API + '/activity/' + currentEditIndex, {
+        method:'PUT',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({user_id: currentUser.id, description: editTextarea.value})
+    })
+    .then(res => res.json())
+    .then(data => { alert(data.message || "修改成功"); closeEditModal(); renderTeacherTable(); });
+}
+
+function openRosterById(actId){
+    currentRosterActId = actId;
+    rosterBlock.classList.remove("hidden");
+    fetch(API + '/activity/' + actId + '/registrations?teacher_id=' + currentUser.id)
+    .then(res => res.json())
+    .then(data => {
+        const list = data.registrations || [];
+        rosterBody.innerHTML = "";
+        if(list.length === 0){
+            rosterBody.innerHTML = `<tr><td colspan="4">暂无报名记录</td></tr>`;
+            return;
+        }
+        list.forEach(r => {
+            const tr = document.createElement("tr");
+            let actionHtml = "-";
+            if(r.status === "pending"){
+                actionHtml = `
+                    <button class="btn-approve" onclick="reviewReg(${r.reg_id}, 'approve')">通过</button>
+                    <button class="btn-reject" onclick="reviewReg(${r.reg_id}, 'reject')">拒绝</button>
+                `;
+            }
+            tr.innerHTML = `<td>${r.name}</td><td>${r.username}</td><td>${r.status_text || r.status}</td><td>${actionHtml}</td>`;
+            rosterBody.appendChild(tr);
+        });
+    });
+}
+function closeRoster(){ rosterBlock.classList.add("hidden"); }
+
+function reviewReg(regId, action){
+    fetch(API + '/registration/' + regId + '/review', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({user_id: currentUser.id, action: action})
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message);
+        openRosterById(currentRosterActId);
+        renderTeacherTable();
+    });
+}
+
+function exportExcel(){
+    window.location.href = API + '/admin/export';
+}
+
+function showPublishForm(){ publishForm.classList.remove("hidden"); }
+function hidePublishForm(){
+    publishForm.classList.add("hidden");
+    document.getElementById("actName").value="";
+    document.getElementById("actTime").value="";
+    document.getElementById("actLoc").value="";
+    document.getElementById("actMax").value="";
+    document.getElementById("actDesc").value="";
+    document.getElementById("needAudit").checked=false;
+}
+function saveNewActivity(){
+    const name = document.getElementById("actName").value.trim();
+    const time = document.getElementById("actTime").value.replace("T"," ");
+    const loc = document.getElementById("actLoc").value.trim();
+    const max = Number(document.getElementById("actMax").value);
+    const desc = document.getElementById("actDesc").value;
+    const needAudit = document.getElementById("needAudit").checked;
+    if(!name || !time || !loc || !max){ alert("请填写完整活动信息"); return; }
+    fetch(API + '/activities', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+            user_id: currentUser.id, title: name, time: time,
+            location: loc, max_people: max, description: desc,
+            need_review: needAudit ? 1 : 0
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message || "发布成功");
+        hidePublishForm();
+        renderTeacherTable();
+    });
+}
+function deleteActivityById(actId){
+    if(!confirm("确认删除该活动？")) return;
+    fetch(API + '/activity/' + actId, {
+        method:'DELETE',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({user_id: currentUser.id})
+    })
+    .then(res => res.json())
+    .then(data => { alert(data.message); renderTeacherTable(); });
+}
+
+// ============ 管理员 ============
+function renderAdminTable(){
+    fetch(API + '/admin/users?admin_id=' + currentUser.id)
+    .then(res => res.json())
+    .then(data => {
+        userList = data.users || [];
+        adminTableBody.innerHTML = "";
+        userList.forEach(u => {
+            const tr = document.createElement("tr");
+            const statusHtml = u.status === 'active'
+                ? `<span class="tag-normal">正常</span>`
+                : `<span class="tag-freeze">已停用</span>`;
+            let btnHtml = "";
+            if(u.role !== 'admin'){
+                if(u.status === 'active'){
+                    btnHtml = `<button class="btn-stop" onclick="freezeUser(${u.id})">停用</button>`;
+                }else{
+                    btnHtml = `<button class="btn-unfreeze" onclick="unfreezeUser(${u.id})">解除冻结</button>`;
+                }
+            }
+            tr.innerHTML = `<td>${u.name}</td><td>${u.username}</td><td>${u.role}</td><td>${statusHtml}</td><td>${btnHtml}</td>`;
+            adminTableBody.appendChild(tr);
+        });
+        renderAdminActivityTable();
+    });
+}
+
+function freezeUser(userId){
+    if(!confirm("确认停用该账号？停用后用户无法登录系统。")) return;
+    fetch(API + '/admin/user/' + userId + '/disable', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({admin_id: currentUser.id})
+    })
+    .then(res => res.json())
+    .then(data => { alert(data.message); renderAdminTable(); });
+}
+
+function unfreezeUser(userId){
+    if(!confirm("确认解除该账号冻结？解除后账号可以正常登录。")) return;
+    fetch(API + '/admin/user/' + userId + '/enable', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({admin_id: currentUser.id})
+    })
+    .then(res => res.json())
+    .then(data => { alert(data.message); renderAdminTable(); });
+}
+
+function renderAdminActivityTable(){
+    fetch(API + '/admin/activities?admin_id=' + currentUser.id)
+    .then(res => res.json())
+    .then(data => {
+        const list = data.activities || [];
+        adminActBody.innerHTML = "";
+        list.forEach(act => {
+            const tr = document.createElement("tr");
+            let st = '正常';
+            if(act.cancelled === 1) st = '已取消';
+            else if(act.current_people >= act.max_people) st = '已满员';
+            tr.innerHTML = `<td>${act.title}</td><td>${act.time}</td><td>${act.location}</td><td>${act.current_people}/${act.max_people}</td><td>${act.publisher_name || ""}</td><td>${st}</td>`;
+            adminActBody.appendChild(tr);
+        });
+    });
+}
+</script>
+</body>
+</html>
